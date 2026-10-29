@@ -1,0 +1,14 @@
+# Dataset files are hosted on MARV, never on GitHub
+data/
+*.mcap
+*.db3
+**/sequences/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Credentials
+.env

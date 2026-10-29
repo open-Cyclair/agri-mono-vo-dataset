@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this dataset or software, please cite the paper below."
+title: "GS-AgriField"
+type: dataset
+authors:
+  - family-names: "Dalah"
+    given-names: "Aya"
+    affiliation: "INRAE, TSCF; Cyclair SAS"
+  - family-names: "Alwan"
+    given-names: "Salwan"
+    affiliation: "Cyclair SAS"
+  - family-names: "Debain"
+    given-names: "Christophe"
+    affiliation: "INRAE, TSCF"
+  - family-names: "Laneurit"
+    given-names: "Jean"
+    affiliation: "INRAE, TSCF"
+license: CC-BY-NC-SA-4.0
+repository-code: "https://github.com/itsayoushka/agri-mono-vo-dataset"
+url: "https://marv.mesocentre.uca.fr/?filter=#/collection/cyclair"
+keywords:
+  - agricultural robotics
+  - monocular visual odometry
+  - ROS 2
+  - dataset
+preferred-citation:
+  type: unpublished
+  title: "GS-AgriField: A dataset and benchmark for visual localization of an agricultural robot in row crops"
+  authors:
+    - family-names: "Dalah"
+      given-names: "Aya"
+    - family-names: "Alwan"
+      given-names: "Salwan"
+    - family-names: "Debain"
+      given-names: "Christophe"
+    - family-names: "Laneurit"
+      given-names: "Jean"
+  year: 2026
+  notes: "Manuscript in preparation"
