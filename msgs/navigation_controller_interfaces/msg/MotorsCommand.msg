@@ -1,0 +1,8 @@
+float32 fl_angle_dir
+float32 fr_angle_dir
+float32 rl_angle_dir
+float32 rr_angle_dir
+float32 fl_rate_trac
+float32 fr_rate_trac
+float32 rl_rate_trac
+float32 rr_rate_trac

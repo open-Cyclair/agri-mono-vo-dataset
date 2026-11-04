@@ -1,0 +1,10 @@
+std_msgs/Header header
+
+float32 gain
+float32 exposure_time
+float64 brightness_mean
+float64 brightness_std_dev
+bool is_image_brightness_ok
+float64 sharpness_indicator_mean
+float64 sharpness_indicator_variance
+bool is_image_sharpness_ok

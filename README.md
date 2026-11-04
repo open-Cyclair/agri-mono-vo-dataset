@@ -71,6 +71,9 @@ converter are:
 | Odometry   | `/odom/sbg`                      | `nav_msgs/msg/Odometry`      |
 | Transforms | `/tf_static`, `/tf`              | `tf2_msgs/msg/TFMessage`     |
 
+Other topics, such as the wheel steering and traction feedback, use custom
+messages: see [msgs/README.md](msgs/README.md).
+
 ## Repository Structure
 
 ```text
@@ -80,6 +83,7 @@ converter are:
 ├── LICENSE-DATA            CC BY-NC-SA 4.0 (dataset)
 ├── CITATION.cff
 ├── requirements.txt        Python dependencies of the downloader
+├── msgs/                   custom ROS 2 message definitions
 ├── scripts/
 │   ├── download_marv.py                 download a ROS 2 bag from MARV
 │   └── mono_camera_kitti_converter.py   ROS 2 bag -> KITTI-like sequence
