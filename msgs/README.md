@@ -13,6 +13,22 @@ The `.msg` files are stored here under their original package names, because
 the bags refer to these names. `SwerveDataNav` uses `MotorsCommand`, from the
 same package.
 
+## Units of `/swerve_data_nav`
+
+The topic is published at 25 Hz. `feedbacks` holds the measured values and
+`targets` the commands, for the four wheels `fl`, `fr`, `rl` and `rr`.
+
+| Field | Unit | Sign | Resolution |
+|-------|------|------|------------|
+| `*_rate_trac` (wheel speed) | rad/s | positive when the wheel rolls forward | about 0.0021 rad/s |
+| `*_angle_dir` (steering angle) | rad | positive counterclockwise about +z | about 0.00175 rad (0.1°) |
+
+Speeds are given at the wheel, not at the motor. Multiply `*_rate_trac` by the
+wheel radius to obtain a linear speed. The `.msg` files do not state units: the
+values above were derived from the recorded data.
+
+## SBG Messages
+
 Topics of type `sbg_driver/msg/*` come from the public
 [SBG Systems ROS 2 driver](https://github.com/SBG-Systems/sbg_ros2_driver).
 
