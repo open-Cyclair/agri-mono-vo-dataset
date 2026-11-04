@@ -144,6 +144,7 @@ container and mount the repository and data folders:
 docker run --rm \
   --memory=8g --memory-swap=8g \
   -e PYTHONUNBUFFERED=1 \
+  -e HOST_IDS="$(id -u):$(id -g)" \
   -v "$(pwd)":/workspace \
   -v <data_dir>:/data \
   -w /workspace \
@@ -155,11 +156,15 @@ docker run --rm \
             && python3 scripts/mono_camera_kitti_converter.py \
                  --bag "/data/<bag_name>" \
                  --out "/data/<bag_name>_KITTI" \
-                 --seq "<bag_name>"'
+                 --seq "<bag_name>" \
+            && chown -R "$HOST_IDS" "/data/<bag_name>_KITTI"'
 ```
 
 The memory limit keeps the machine responsive if a future change starts
 buffering too much data by accident.
+
+The final `chown` gives the converted files back to your user, since the
+container runs as root.
 
 > **Note:** `info.txt` and the per-sequence `README.md` record the absolute
 > path of the source bag on the machine that ran the conversion. Check these
