@@ -11,6 +11,7 @@ interactive password prompt.
 """
 
 import argparse
+import fnmatch
 import getpass
 import json
 import os
@@ -44,6 +45,12 @@ parser.add_argument(
     "--user",
     default=os.environ.get("MARV_USER"),
     help="MARV user name (default: $MARV_USER).",
+)
+parser.add_argument(
+    "--files",
+    nargs="+",
+    default=None,
+    help="Only download the files whose name matches one of these patterns (e.g. '*_45.mcap' metadata.yaml).",
 )
 parser.add_argument(
     "--verbose",
@@ -109,6 +116,8 @@ if args.verbose:
 
 output_root = pathlib.Path(args.output_dir)
 for id, path in enumerate(file_list["paths"]):
+    if args.files and not any(fnmatch.fnmatch(path.split("/")[-1], p) for p in args.files):
+        continue
     with requests.get(
         MARV_API + file_list["urls"][id], headers=headers, stream=True, timeout=TIMEOUT_S
     ) as r_file:

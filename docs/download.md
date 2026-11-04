@@ -56,7 +56,16 @@ Options:
 | `--output-dir`  | Target directory (default: current directory)             |
 | `--api`         | MARV API base URL (default: `$MARV_API` or the public server) |
 | `--user`        | MARV user name (default: `$MARV_USER`, else prompted)     |
+| `--files`       | Only download the files matching these name patterns      |
 | `--verbose`     | Print the dataset query and file list returned by MARV    |
+
+To fetch only part of a sequence, for example one chunk of the bag and its
+metadata:
+
+```bash
+python3 scripts/download_marv.py <dataset_hash> --output-dir data/bags \
+  --files '*_45.mcap' metadata.yaml
+```
 
 Credentials are never stored in the script. Never commit them to the
 repository.
