@@ -15,7 +15,8 @@ https://marv.mesocentre.uca.fr/?filter=#/detail/<dataset_hash>
 ## Option 1: Web interface
 
 Open the sequence link in a browser and download the files from the MARV
-detail page.
+detail page. The same page shows the images, motion plots and trajectory of the
+sequence, so you can inspect it before downloading.
 
 ## Option 2: `scripts/download_marv.py`
 
@@ -60,5 +61,8 @@ Options:
 Credentials are never stored in the script. Never commit them to the
 repository.
 
-> **TODO:** document the access model for the public release (public account,
-> per-user registration, or anonymous access).
+## Access
+
+Access is free. Fill in the [request form](https://marv-gate.cyclair.fr/) to
+receive the MARV access link and credentials automatically by email, without
+manual approval.

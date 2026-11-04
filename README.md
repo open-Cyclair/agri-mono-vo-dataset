@@ -20,9 +20,12 @@ The datasets themselves are **not** stored in this repository.
 
 The data is hosted on a MARV Robotics server in Clermont-Ferrand, France.
 
-**Access.** Access to the dataset is free. A request form will be online soon:
-it will send the MARV access link and credentials automatically by email,
-without manual approval.
+**Access.** Access to the dataset is free. Fill in the
+[request form](https://marv-gate.cyclair.fr/) to receive the MARV access link and
+credentials automatically by email, without manual approval.
+
+Once signed in, you can browse each sequence on MARV before downloading it,
+including its images, motion plots and trajectory.
 
 | Seq. | Bag name | Crop | BBCH | Speed | Date |
 |------|----------|------|------|-------|------|
@@ -142,7 +145,7 @@ If you use this dataset, please cite:
   author = {Dalah, Aya and Alwan, Salwan and Debain, Christophe and Laneurit, Jean},
   year   = {2026},
   note   = {Manuscript in preparation},
-  url    = {https://github.com/itsayoushka/agri-mono-vo-dataset}
+  url    = {https://github.com/open-Cyclair/agri-mono-vo-dataset}
 }
 ```
 
