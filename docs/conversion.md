@@ -23,19 +23,22 @@ reads the chunks that are present, in order, and lists the missing ones in
 
 ## Requirements
 
-- ROS 2 Humble, with the MCAP storage plugin
-- `cv_bridge`, `tf_transformations`, OpenCV, NumPy
-- `mcap` and `mcap-ros2-support` (Python), to decode the SBG and Cyclair
-  topics in the `topics/` export
+The simplest way is the Docker image built from this repository (see
+[Running in Docker](#running-in-docker)). It contains every dependency at a
+fixed version.
 
-On Ubuntu 22.04:
+To run the converter without Docker, on Ubuntu 22.04 with ROS 2 Humble:
 
 ```bash
 sudo apt install ros-humble-rosbag2-storage-mcap ros-humble-cv-bridge \
                  ros-humble-tf-transformations
-pip install transforms3d mcap mcap-ros2-support
+pip install -r requirements-converter.txt
 source /opt/ros/humble/setup.bash
 ```
+
+`requirements-converter.txt` pins `transforms3d` (used by
+`tf_transformations`) and `mcap` and `mcap-ros2-support`, which decode the SBG
+and Cyclair topics in the `topics/` export.
 
 ## Usage
 
@@ -151,46 +154,41 @@ from the Image or CameraInfo `header.frame_id`. Override them only if needed:
 --robot-frame imu_link --camera-frame <camera_frame_id>
 ```
 
-## Running In Docker
+## Running in Docker
 
-If ROS 2 is not installed on the host, run the converter in a ROS 2 Humble
-container and mount the repository and data folders:
+The `Dockerfile` at the root of the repository builds an image with ROS 2
+Humble (base image pinned by digest), the MCAP storage plugin and the Python
+packages of `requirements.txt` and `requirements-converter.txt`. Build it
+once, from the repository root:
 
 ```bash
-docker run --rm \
-  --memory=8g --memory-swap=8g \
-  -e PYTHONUNBUFFERED=1 \
-  -e HOST_IDS="$(id -u):$(id -g)" \
-  -v "$(pwd)":/workspace \
-  -v <data_dir>:/data \
-  -w /workspace \
-  ros:humble \
-  bash -lc 'apt-get update && apt-get install -y python3-pip \
-              ros-humble-rosbag2-storage-mcap ros-humble-cv-bridge ros-humble-tf-transformations \
-            && pip install transforms3d mcap mcap-ros2-support \
-            && source /opt/ros/humble/setup.bash \
-            && python3 scripts/mono_camera_kitti_converter.py \
-                 --bag "/data/<bag_name>" \
-                 --out "/data/<bag_name>_KITTI" \
-                 --seq "<bag_name>" \
-            && chown -R "$HOST_IDS" "/data/<bag_name>_KITTI"'
+docker build -t gs-agrifield-tools .
 ```
 
-The memory limit keeps the machine responsive if a future change starts
-buffering too much data by accident.
+Then convert a bag stored in `<data_dir>`:
 
-The final `chown` gives the converted files back to your user, since the
-container runs as root.
+```bash
+docker run --rm --memory=8g \
+  --user "$(id -u):$(id -g)" \
+  -v <data_dir>:/data \
+  gs-agrifield-tools convert \
+    --bag /data/<bag_name> \
+    --out /data/kitti \
+    --seq <bag_name>
+```
+
+`--user` writes the output files as your user. `<data_dir>` must exist
+before the first run. The memory limit keeps the machine responsive.
+`docker run --rm gs-agrifield-tools convert --help` lists all options.
 
 ### Linux, macOS and Windows
 
-The Docker commands use bash syntax. On Linux and macOS, run them in a
-terminal. On Windows, run them in a WSL 2 terminal (Ubuntu), which Docker
-Desktop already requires; they do not work as written in PowerShell or `cmd`.
-On macOS and Windows, give Docker Desktop at least 8 GB of memory
-(Settings > Resources). The images used are available for x86-64 and ARM64
-(including Apple silicon).
+The commands use bash syntax. On Linux and macOS, run them in a terminal. On
+Windows, run them in a WSL 2 terminal (Ubuntu), which Docker Desktop already
+requires; they do not work as written in PowerShell or `cmd`. On macOS and
+Windows, give Docker Desktop at least 8 GB of memory (Settings > Resources).
+The base image is available for x86-64 and ARM64 (including Apple silicon).
 
 > **Note:** `info.txt` and the per-sequence `README.md` record the absolute
-> path of the source bag on the machine that ran the conversion. Check these
+> path of the source bag (`/data/...` in Docker). Check these
 > files before you redistribute converted sequences.

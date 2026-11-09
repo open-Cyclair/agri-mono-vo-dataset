@@ -84,7 +84,10 @@ messages: see [msgs/README.md](msgs/README.md).
 ├── LICENSE                 BSD 3-Clause (code)
 ├── LICENSE-DATA            CC BY-NC-SA 4.0 (dataset)
 ├── CITATION.cff
+├── Dockerfile              environment of the tools (ROS 2 Humble, pinned versions)
+├── docker/entrypoint.sh    `download` and `convert` commands of the image
 ├── requirements.txt        Python dependencies of the downloader
+├── requirements-converter.txt  Python dependencies of the converter
 ├── msgs/                   custom ROS 2 message definitions
 ├── scripts/
 │   ├── download_marv.py                 download a ROS 2 bag from MARV
@@ -96,34 +99,41 @@ messages: see [msgs/README.md](msgs/README.md).
 
 ## Quick Start
 
+All tools run in a Docker image built from this repository. Build it once,
+from the repository root:
+
+```bash
+docker build -t gs-agrifield-tools .
+mkdir -p data
+```
+
 ### 1. Download a ROS 2 bag
 
 ```bash
-pip install -r requirements.txt
 export MARV_USER=<user>
-python3 scripts/download_marv.py <dataset_hash> --output-dir data/bags
+export MARV_PASSWORD=<password>
+docker run --rm --user "$(id -u):$(id -g)" -e MARV_USER -e MARV_PASSWORD \
+  -v "$(pwd)/data":/data \
+  gs-agrifield-tools download <dataset_hash> --output-dir /data
 ```
 
 The dataset hash of each sequence is listed in
 [docs/download.md](docs/download.md). Add `--chunks 0-3` to download only some
-chunks of a sequence. Both tools can also run in Docker (see the docs).
+chunks of a sequence.
 
 ### 2. Convert it to a KITTI-like sequence
 
-Requires ROS 2 Humble with the MCAP storage plugin (see
-[docs/conversion.md](docs/conversion.md), including a Docker option). The bag
-folder may hold all chunks of the sequence or only some of them.
-
 ```bash
-source /opt/ros/humble/setup.bash
-python3 scripts/mono_camera_kitti_converter.py \
-  --bag data/bags/<bag_name> \
-  --out data/kitti \
-  --seq <bag_name>
+docker run --rm --memory=8g --user "$(id -u):$(id -g)" \
+  -v "$(pwd)/data":/data \
+  gs-agrifield-tools convert --bag /data/<bag_name> \
+    --out /data/kitti --seq <bag_name>
 ```
 
-The output layout, file formats and frame conventions are described in
-[docs/conversion.md](docs/conversion.md).
+The bag folder may hold all chunks of the sequence or only some of them. The
+output layout, file formats and frame conventions, and the installation
+without Docker, are described in [docs/conversion.md](docs/conversion.md). On
+Windows, run the commands in a WSL 2 terminal.
 
 ## License
 

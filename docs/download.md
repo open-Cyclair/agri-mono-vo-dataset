@@ -34,9 +34,26 @@ sequence, so you can inspect it before downloading.
 
 ## Option 2: `scripts/download_marv.py`
 
+With the Docker image of this repository (see
+[conversion.md](conversion.md#running-in-docker) to build it):
+
+```bash
+mkdir -p <data_dir>
+export MARV_USER=<user>
+export MARV_PASSWORD=<password>
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e MARV_USER -e MARV_PASSWORD \
+  -v <data_dir>:/data \
+  gs-agrifield-tools download <dataset_hash> --output-dir /data
+```
+
+Omit `MARV_PASSWORD` and add `-it` to `docker run` to be prompted for it.
+
+Without Docker, the script only needs Python 3 and `requests`, on Linux,
+macOS or Windows:
+
 ```bash
 pip install -r requirements.txt
-
 export MARV_USER=<user>
 export MARV_PASSWORD=<password>     # or omit it to be prompted
 python3 scripts/download_marv.py <dataset_hash> --output-dir data/bags
@@ -50,34 +67,16 @@ The script:
 3. downloads every file of the dataset, keeping the bag folder layout:
 
 ```text
-data/bags/
+<data_dir>/
 └── <bag_name>/
     ├── metadata.yaml
-    └── <bag_name>_0.mcap
+    ├── <bag_name>_0.mcap
+    ├── <bag_name>_1.mcap
+    └── ...
 ```
 
-The `<bag_name>/` folder is a regular ROS 2 bag. Pass it straight to the
-converter (`--bag data/bags/<bag_name>`), or inspect it with:
-
-```bash
-ros2 bag info data/bags/<bag_name>
-```
-
-To run the script without installing Python packages on the host, use Docker
-(pass the credentials as environment variables, or add `-it` to be prompted):
-
-```bash
-docker run --rm -e MARV_USER -e MARV_PASSWORD \
-  -e HOST_IDS="$(id -u):$(id -g)" \
-  -v "$(pwd)":/workspace -v <data_dir>:/data -w /workspace \
-  python:3.12-slim \
-  sh -c 'pip install -r requirements.txt \
-         && python3 scripts/download_marv.py <dataset_hash> --output-dir /data \
-         && chown -R "$HOST_IDS" /data'
-```
-
-The script itself runs on Linux, macOS and Windows with Python 3. The Docker
-command above uses bash syntax: on Windows, run it in a WSL 2 terminal.
+The `<bag_name>/` folder is a regular ROS 2 bag that can be passed straight to
+the converter.
 
 Options:
 
@@ -96,8 +95,9 @@ A sequence can be downloaded whole, or only some of its chunks. For example,
 the first four chunks and their metadata:
 
 ```bash
-python3 scripts/download_marv.py <dataset_hash> --output-dir data/bags \
-  --chunks 0-3
+docker run --rm --user "$(id -u):$(id -g)" -e MARV_USER -e MARV_PASSWORD \
+  -v <data_dir>:/data gs-agrifield-tools download <dataset_hash> \
+  --output-dir /data --chunks 0-3
 ```
 
 `--files` does the same with file name patterns, e.g.

@@ -1,0 +1,7 @@
+# Only the tools are copied into the image.
+*
+!requirements.txt
+!requirements-converter.txt
+!scripts/
+!msgs/
+!docker/

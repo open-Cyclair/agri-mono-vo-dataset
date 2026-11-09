@@ -1,0 +1,5 @@
+# Python packages of the KITTI-like converter, on top of ROS 2 Humble
+# (rosbag2 with the MCAP plugin, cv_bridge, tf_transformations).
+transforms3d==0.3.1
+mcap==1.6.0
+mcap-ros2-support==0.6.0
