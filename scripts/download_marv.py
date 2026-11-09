@@ -16,6 +16,7 @@ import getpass
 import json
 import os
 import pathlib
+import re
 import shutil
 import sys
 
@@ -53,11 +54,51 @@ parser.add_argument(
     help="Only download the files whose name matches one of these patterns (e.g. '*_45.mcap' metadata.yaml).",
 )
 parser.add_argument(
+    "--chunks",
+    nargs="+",
+    default=None,
+    help="Only download these chunks of the bag, by index or range (e.g. 0-3 30). "
+    "metadata.yaml is always added. Chunk 0 holds /tf_static (camera extrinsics).",
+)
+parser.add_argument(
     "--verbose",
     action="store_true",
     help="Print the dataset query and file list returned by the server.",
 )
 args = parser.parse_args()
+
+
+def parse_chunks(values):
+    chunks = set()
+    for value in values:
+        for part in value.split(","):
+            match = re.fullmatch(r"(\d+)(?:-(\d+))?", part.strip())
+            if not match:
+                parser.error(f"invalid chunk index or range: {part!r}")
+            first = int(match.group(1))
+            last = int(match.group(2) or first)
+            if last < first:
+                parser.error(f"invalid chunk range: {part!r}")
+            chunks.update(range(first, last + 1))
+    return chunks
+
+
+chunks = parse_chunks(args.chunks) if args.chunks else None
+
+
+def is_selected(file_name):
+    if args.files is None and chunks is None:
+        return True
+    if args.files and any(fnmatch.fnmatch(file_name, p) for p in args.files):
+        return True
+    if chunks is not None:
+        if file_name == "metadata.yaml":
+            return True
+        match = re.search(r"_(\d+)\.mcap$", file_name)
+        if match and int(match.group(1)) in chunks:
+            return True
+    return False
+
 
 MARV_API = args.api if args.api.endswith("/") else args.api + "/"
 
@@ -115,9 +156,30 @@ if args.verbose:
     print(json.dumps(file_list, indent=2))
 
 output_root = pathlib.Path(args.output_dir)
-for id, path in enumerate(file_list["paths"]):
-    if args.files and not any(fnmatch.fnmatch(path.split("/")[-1], p) for p in args.files):
-        continue
+selected = [
+    (id, path)
+    for id, path in enumerate(file_list["paths"])
+    if is_selected(path.split("/")[-1])
+]
+if chunks is not None:
+    available = {
+        int(m.group(1))
+        for m in (re.search(r"_(\d+)\.mcap$", p) for p in file_list["paths"])
+        if m
+    }
+    absent = sorted(chunks - available)
+    if absent:
+        print(
+            f"Warning: chunk(s) {absent} do not exist in this bag "
+            f"(available: 0-{max(available)})" if available else "Warning: this bag has no chunk"
+        )
+    if not chunks & available and not args.files:
+        sys.exit("None of the requested chunks exists in this bag.")
+if not selected:
+    sys.exit("No file of the dataset matches the selection (--files / --chunks).")
+print(f"{len(selected)} of {len(file_list['paths'])} files selected")
+
+for id, path in selected:
     with requests.get(
         MARV_API + file_list["urls"][id], headers=headers, stream=True, timeout=TIMEOUT_S
     ) as r_file:
