@@ -32,6 +32,12 @@ values above were derived from the recorded data.
 Topics of type `sbg_driver/msg/*` come from the public
 [SBG Systems ROS 2 driver](https://github.com/SBG-Systems/sbg_ros2_driver).
 
+## Reading These Topics
+
+The KITTI-like converter decodes these topics, and the SBG ones, in its
+`topics/` text export, using the definitions stored in the MCAP files (see
+[docs/conversion.md](../docs/conversion.md#exporting-unused-topics)).
+
 ## Reading These Topics Without ROS
 
 The Python library [rosbags](https://pypi.org/project/rosbags/) can load the

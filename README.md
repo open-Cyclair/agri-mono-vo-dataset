@@ -16,7 +16,7 @@ The datasets themselves are **not** stored in this repository.
 
 ## Download Dataset
 
-**➡️ [Download the dataset on MARV Robotics](https://marv.mesocentre.uca.fr/?filter=#/collection/cyclair)**
+**[Download the dataset on MARV Robotics](https://marv.mesocentre.uca.fr/?filter=#/collection/cyclair)**
 
 The data is hosted on a MARV Robotics server in Clermont-Ferrand, France.
 
@@ -102,10 +102,15 @@ export MARV_USER=<user>
 python3 scripts/download_marv.py <dataset_hash> --output-dir data/bags
 ```
 
+The dataset hash of each sequence is listed in
+[docs/download.md](docs/download.md). Add `--chunks 0-3` to download only some
+chunks of a sequence. Both tools can also run in Docker (see the docs).
+
 ### 2. Convert it to a KITTI-like sequence
 
 Requires ROS 2 Humble with the MCAP storage plugin (see
-[docs/conversion.md](docs/conversion.md), including a Docker option).
+[docs/conversion.md](docs/conversion.md), including a Docker option). The bag
+folder may hold all chunks of the sequence or only some of them.
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -115,22 +120,8 @@ python3 scripts/mono_camera_kitti_converter.py \
   --seq <bag_name>
 ```
 
-### KITTI-like output
-
-```text
-data/kitti/sequences/<sequence_name>/
-├── image_/      PNG frames 000000.png, 000001.png, ...
-├── calib.txt    P2: 3x4 projection matrix from CameraInfo
-├── poses.txt    3x4 pose per frame (KITTI format), nearest /odom/sbg message
-├── times.txt    timestamp per frame (s)
-└── info.txt     conversion metadata
-```
-
-The single camera goes to `image_/`, not `image_2/`. The converter also writes
-`nav_camera_to_imu_link.txt` (camera ↔ `imu_link` extrinsics from TF), a
-per-sequence `README.md`, and an optional `topics/` text export. See
-[docs/conversion.md](docs/conversion.md) for every file format and frame
-convention.
+The output layout, file formats and frame conventions are described in
+[docs/conversion.md](docs/conversion.md).
 
 ## License
 

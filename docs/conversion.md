@@ -16,17 +16,24 @@ Default topics:
 Images are written to disk as the bag is read, so the converter never holds
 the full image sequence in RAM.
 
+The bag can be complete or partial (only some chunks downloaded, see
+[download.md](download.md#downloading-part-of-a-sequence)). The converter
+reads the chunks that are present, in order, and lists the missing ones in
+`info.txt`. A single `.mcap` file can also be passed to `--bag`.
+
 ## Requirements
 
 - ROS 2 Humble, with the MCAP storage plugin
 - `cv_bridge`, `tf_transformations`, OpenCV, NumPy
+- `mcap` and `mcap-ros2-support` (Python), to decode the SBG and Cyclair
+  topics in the `topics/` export
 
 On Ubuntu 22.04:
 
 ```bash
 sudo apt install ros-humble-rosbag2-storage-mcap ros-humble-cv-bridge \
                  ros-humble-tf-transformations
-pip install transforms3d   # needed by tf_transformations
+pip install transforms3d mcap mcap-ros2-support
 source /opt/ros/humble/setup.bash
 ```
 
@@ -39,8 +46,9 @@ python3 scripts/mono_camera_kitti_converter.py \
   --seq <sequence_name>
 ```
 
-`<bag_dir>` is the downloaded bag folder that holds `metadata.yaml` and the
-`.mcap` file(s) (see [download.md](download.md)).
+`<bag_dir>` is the downloaded bag folder that holds `metadata.yaml` and all
+or some of the `.mcap` chunks (see [download.md](download.md)), or a single
+`.mcap` file.
 
 The defaults match the dataset bags. Override topics only if a bag uses
 different names:
@@ -117,8 +125,16 @@ Each topic gets one `.txt` file. The file contains:
 - ROS message type
 - bag timestamp
 - message timestamp when available
-- deserialized message text when the type is available
-- raw message byte size when the type is not available
+- deserialized message text
+- raw message byte size if the message cannot be decoded
+
+Messages are decoded with the definitions stored in the MCAP files, so the SBG
+(`sbg_driver/msg/*`) and Cyclair messages are read without installing their
+ROS packages. This requires the Python packages `mcap` and
+`mcap-ros2-support`. Without them, only the message types installed in the ROS
+environment are decoded. The `sbg_driver` package available for ROS 2 Humble
+does not match the version used on the robot, so do not rely on it to read
+these topics.
 
 Disable this export with:
 
@@ -151,7 +167,7 @@ docker run --rm \
   ros:humble \
   bash -lc 'apt-get update && apt-get install -y python3-pip \
               ros-humble-rosbag2-storage-mcap ros-humble-cv-bridge ros-humble-tf-transformations \
-            && pip install transforms3d \
+            && pip install transforms3d mcap mcap-ros2-support \
             && source /opt/ros/humble/setup.bash \
             && python3 scripts/mono_camera_kitti_converter.py \
                  --bag "/data/<bag_name>" \
