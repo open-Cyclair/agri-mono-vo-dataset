@@ -153,11 +153,9 @@ Aya Dalah<sup>1,2</sup>, Salwan Alwan<sup>2</sup>, Christophe Debain<sup>1</sup>
 1. INRAE, Technologies and Information Systems for Agroecosystems, Clermont-Ferrand, France
 2. Cyclair SAS, Poitiers, France
 
-This work was supported by a CIFRE PhD fellowship funded by the ANRT
-(Association Nationale de la Recherche et de la Technologie) and conducted in
-collaboration with Cyclair SAS. It has been partially supported by ROBOTEX 2.0,
-the French Infrastructure in Robotics, under the grants ROBOTEX (EQUIPEX
-ANR-10-EQPX-44-01) and TIRREX (EQUIPEX+ grant ANR-21-ESRE-0015).
+This work was supported by a CIFRE PhD fellowship (agreement 2023/1574) funded
+by the ANRT (Association Nationale de la Recherche et de la Technologie) and
+conducted in collaboration with Cyclair SAS.
 
 Data hosting: MARV Robotics server, Clermont-Ferrand, France.
 
