@@ -182,6 +182,15 @@ buffering too much data by accident.
 The final `chown` gives the converted files back to your user, since the
 container runs as root.
 
+### Linux, macOS and Windows
+
+The Docker commands use bash syntax. On Linux and macOS, run them in a
+terminal. On Windows, run them in a WSL 2 terminal (Ubuntu), which Docker
+Desktop already requires; they do not work as written in PowerShell or `cmd`.
+On macOS and Windows, give Docker Desktop at least 8 GB of memory
+(Settings > Resources). The images used are available for x86-64 and ARM64
+(including Apple silicon).
+
 > **Note:** `info.txt` and the per-sequence `README.md` record the absolute
 > path of the source bag on the machine that ran the conversion. Check these
 > files before you redistribute converted sequences.

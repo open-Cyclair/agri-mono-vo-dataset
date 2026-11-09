@@ -76,6 +76,9 @@ docker run --rm -e MARV_USER -e MARV_PASSWORD \
          && chown -R "$HOST_IDS" /data'
 ```
 
+The script itself runs on Linux, macOS and Windows with Python 3. The Docker
+command above uses bash syntax: on Windows, run it in a WSL 2 terminal.
+
 Options:
 
 | Option          | Description                                               |
