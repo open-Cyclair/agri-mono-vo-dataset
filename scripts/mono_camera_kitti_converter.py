@@ -6,9 +6,14 @@
 This converter is intended for bags that contain one camera stream, such as
 Cyclair nav1 HD bags. Images are written directly to KITTI `image_/` while the
 bag is read, so the conversion does not keep full image sequences in memory.
+
+The bag can be complete or partial: when only some chunks of a sequence were
+downloaded, the chunks that are present are read in order and the missing ones
+are listed in info.txt.
 """
 
 import argparse
+import glob
 import os
 import re
 from collections import deque
@@ -21,6 +26,13 @@ from rclpy.serialization import deserialize_message
 from rosbag2_py import ConverterOptions, SequentialReader, StorageOptions
 from rosidl_runtime_py.utilities import get_message
 from tf_transformations import quaternion_from_matrix, quaternion_matrix
+
+try:  # Optional: decode topics with the message definitions stored in the bag.
+    from mcap.reader import make_reader
+    from mcap_ros2.decoder import DecoderFactory
+except ImportError:  # pragma: no cover - depends on the environment
+    make_reader = None
+    DecoderFactory = None
 
 
 def ensure_dir(path: str) -> None:
@@ -66,6 +78,80 @@ def get_topic_types(reader: SequentialReader) -> Dict[str, str]:
         item.name: item.type
         for item in reader.get_all_topics_and_types()
     }
+
+
+def chunk_index(path: str) -> int:
+    match = re.search(r"_(\d+)\.mcap$", path)
+    return int(match.group(1)) if match else -1
+
+
+def resolve_bag_files(bag: str) -> Tuple[List[str], List[str]]:
+    """Return the MCAP files to read, in order, and the listed files that are missing.
+
+    `bag` is a bag folder (complete or with only some chunks) or one .mcap file.
+    """
+    if os.path.isfile(bag):
+        return [bag], []
+    if not os.path.isdir(bag):
+        raise FileNotFoundError(f"[ERROR] Bag not found: {bag}")
+
+    metadata_path = os.path.join(bag, "metadata.yaml")
+    listed: List[str] = []
+    if os.path.isfile(metadata_path):
+        import yaml
+
+        with open(metadata_path) as f:
+            info = yaml.safe_load(f).get("rosbag2_bagfile_information", {})
+        listed = [os.path.join(bag, name) for name in info.get("relative_file_paths", [])]
+
+    if listed:
+        present = [path for path in listed if os.path.isfile(path)]
+        missing = [os.path.basename(path) for path in listed if not os.path.isfile(path)]
+    else:
+        present = sorted(glob.glob(os.path.join(bag, "*.mcap")), key=chunk_index)
+        missing = []
+
+    if not present:
+        raise FileNotFoundError(f"[ERROR] No .mcap file found in: {bag}")
+    return present, missing
+
+
+class EmbeddedSchemaDecoder:
+    """Decode messages with the definitions stored in the MCAP file.
+
+    The bags embed the exact definition of every message type they contain, so
+    SBG and Cyclair messages can be read without installing their packages.
+    """
+
+    def __init__(self) -> None:
+        self.available = make_reader is not None and DecoderFactory is not None
+        self.decoders: Dict[str, object] = {}
+
+    def load_file(self, path: str) -> None:
+        self.decoders = {}
+        if not self.available:
+            return
+        # One factory per file: the factory caches decoders by schema id, and
+        # schema ids are only unique within one MCAP file.
+        factory = DecoderFactory()
+        try:
+            with open(path, "rb") as f:
+                summary = make_reader(f).get_summary()
+        except Exception:
+            return
+        if summary is None:
+            return
+        for channel in summary.channels.values():
+            schema = summary.schemas.get(channel.schema_id)
+            if schema is None:
+                continue
+            decoder = factory.decoder_for(channel.message_encoding, schema)
+            if decoder is not None:
+                self.decoders[channel.topic] = decoder
+
+    def decode(self, topic: str, data: bytes):
+        decoder = self.decoders.get(topic)
+        return None if decoder is None else decoder(data)
 
 
 def normalize_frame_id(frame_id: str) -> str:
@@ -333,8 +419,10 @@ class TopicTextExporter:
         topic_types: Dict[str, str],
         excluded_topics: Set[str],
         enabled: bool,
+        embedded: Optional[EmbeddedSchemaDecoder] = None,
     ) -> None:
         self.out_dir = out_dir
+        self.embedded = embedded
         self.topic_types = topic_types
         self.excluded_topics = excluded_topics
         self.enabled = enabled
@@ -382,7 +470,6 @@ class TopicTextExporter:
             return
 
         handle = self._handle_for(topic)
-        msg_type = self._message_type_for(topic)
         count = self.counts.get(topic, 0)
         self.counts[topic] = count + 1
 
@@ -391,9 +478,22 @@ class TopicTextExporter:
         handle.write(f"bag_time: {bag_time_ns * 1e-9:.9f}\n")
         handle.write(f"type: {self.topic_types.get(topic, 'unknown')}\n")
 
+        embedded_error = None
+        if self.embedded is not None:
+            try:
+                msg = self.embedded.decode(topic, data)
+            except Exception as exc:
+                msg, embedded_error = None, exc
+            if msg is not None:
+                self._write_message(handle, msg, bag_time_ns)
+                return
+
+        msg_type = self._message_type_for(topic)
         if msg_type is None:
             handle.write("deserialized: false\n")
             handle.write(f"raw_bytes: {len(data)}\n")
+            if embedded_error is not None:
+                handle.write(f"error: {type(embedded_error).__name__}: {embedded_error}\n")
             handle.write(
                 "note: message type unavailable in this ROS environment\n\n"
             )
@@ -407,6 +507,10 @@ class TopicTextExporter:
             handle.write(f"error: {type(exc).__name__}: {exc}\n\n")
             return
 
+        self._write_message(handle, msg, bag_time_ns)
+
+    @staticmethod
+    def _write_message(handle: TextIO, msg, bag_time_ns: int) -> None:
         handle.write("deserialized: true\n")
         handle.write(f"stamp: {message_stamp_or_bag_time(msg, bag_time_ns):.9f}\n")
         handle.write("message:\n")
@@ -426,13 +530,22 @@ def write_readme(
     camera_frame: Optional[str],
     nav_camera_transform_found: bool,
     exported_topics: Dict[str, int],
+    bag_files: List[str],
+    missing_files: List[str],
 ) -> None:
     path = os.path.join(seq_dir, "README.md")
     with open(path, "w") as f:
         f.write(f"# KITTI Mono-Camera Conversion: {seq}\n\n")
         f.write("## Source\n")
         f.write(f"- ROS 2 bag: `{os.path.abspath(bag_dir)}`\n")
-        f.write("- Storage: MCAP\n\n")
+        f.write("- Storage: MCAP\n")
+        f.write(f"- Chunks read: {len(bag_files)}\n")
+        if missing_files:
+            f.write(
+                f"- Partial bag: {len(missing_files)} chunk(s) listed in metadata.yaml "
+                "were not found and were skipped (see info.txt).\n"
+            )
+        f.write("\n")
         f.write("## KITTI Layout\n")
         f.write("- `image_/`: PNG images from the single camera stream.\n")
         f.write("- `times.txt`: one timestamp per `image_` frame.\n")
@@ -477,6 +590,9 @@ def convert_mono_camera_bag(
             "Delete or rename it before running again."
         )
 
+    # Check the input before creating any output folder.
+    bag_files, missing_files = resolve_bag_files(bag_dir)
+
     image_dir = os.path.join(seq_dir, "image_")
     topics_dir = os.path.join(seq_dir, "topics")
     ensure_dir(image_dir)
@@ -493,12 +609,28 @@ def convert_mono_camera_bag(
         f.write(f"Robot frame     : {normalize_frame_id(robot_frame)}\n")
         f.write(f"Camera frame    : {normalize_frame_id(camera_frame or '') or 'auto'}\n")
         f.write(f"Export topics   : {export_unused_topics}\n")
+        f.write(f"Chunks read     : {len(bag_files)}\n")
+        for path in bag_files:
+            f.write(f"  - {os.path.basename(path)}\n")
+        f.write(f"Chunks missing  : {len(missing_files)}\n")
+        for name in missing_files:
+            f.write(f"  - {name}\n")
 
-    storage_options = StorageOptions(uri=bag_dir, storage_id="mcap")
-    converter_options = ConverterOptions("", "")
-    reader = SequentialReader()
-    reader.open(storage_options, converter_options)
-    topic_types = get_topic_types(reader)
+    def open_reader(path: str) -> SequentialReader:
+        reader = SequentialReader()
+        reader.open(StorageOptions(uri=path, storage_id="mcap"), ConverterOptions("", ""))
+        return reader
+
+    topic_types: Dict[str, str] = {}
+    for path in bag_files:
+        topic_types.update(get_topic_types(open_reader(path)))
+
+    embedded = EmbeddedSchemaDecoder()
+    if export_unused_topics and not embedded.available:
+        print(
+            "[WARN] Python packages 'mcap' and 'mcap-ros2-support' not found: "
+            "SBG and Cyclair topics may not be decoded in topics/."
+        )
 
     bridge = CvBridge()
     image_msg_type = get_message("sensor_msgs/msg/Image")
@@ -512,6 +644,7 @@ def convert_mono_camera_bag(
         topic_types,
         excluded_topics,
         enabled=export_unused_topics,
+        embedded=embedded,
     )
 
     frame_times = []
@@ -522,52 +655,67 @@ def convert_mono_camera_bag(
     tf_collector = TfTransformCollector()
     image_count = 0
 
-    print(f"[INFO] Bag directory : {bag_dir}")
+    print(f"[INFO] Bag           : {bag_dir}")
+    print(f"[INFO] Chunks read   : {len(bag_files)}")
+    if missing_files:
+        print(
+            f"[WARN] Partial bag: {len(missing_files)} chunk(s) listed in metadata.yaml "
+            "are missing and are skipped."
+        )
+    if all(chunk_index(path) > 0 for path in bag_files):
+        print(
+            "[WARN] The first chunk (_0.mcap) is not read. /tf_static is recorded "
+            "there, so the camera extrinsics will not be found."
+        )
     print(f"[INFO] Output KITTI  : {seq_dir}")
     print("[INFO] Reading bag messages...")
     try:
-        while reader.has_next():
-            topic, data, bag_time_ns = reader.read_next()
+        for path in bag_files:
+            reader = open_reader(path)
+            if export_unused_topics:
+                embedded.load_file(path)
+            while reader.has_next():
+                topic, data, bag_time_ns = reader.read_next()
 
-            if topic == image_topic:
-                msg = deserialize_message(data, image_msg_type)
-                if camera_frame_id is None:
-                    camera_frame_id = normalize_frame_id(msg.header.frame_id) or None
-                stamp = stamp_to_sec(msg.header.stamp)
-                image = bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
-                write_png(os.path.join(image_dir, f"{image_count:06d}.png"), image)
-                frame_times.append(stamp)
-                image_count += 1
-                continue
+                if topic == image_topic:
+                    msg = deserialize_message(data, image_msg_type)
+                    if camera_frame_id is None:
+                        camera_frame_id = normalize_frame_id(msg.header.frame_id) or None
+                    stamp = stamp_to_sec(msg.header.stamp)
+                    image = bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+                    write_png(os.path.join(image_dir, f"{image_count:06d}.png"), image)
+                    frame_times.append(stamp)
+                    image_count += 1
+                    continue
 
-            if topic == camera_info_topic and camera_p is None:
-                msg = deserialize_message(data, info_msg_type)
-                if camera_frame_id is None:
-                    camera_frame_id = normalize_frame_id(msg.header.frame_id) or None
-                camera_p = list(msg.p) if any(msg.p) else None
-                print("[INFO] Captured camera P")
-                continue
+                if topic == camera_info_topic and camera_p is None:
+                    msg = deserialize_message(data, info_msg_type)
+                    if camera_frame_id is None:
+                        camera_frame_id = normalize_frame_id(msg.header.frame_id) or None
+                    camera_p = list(msg.p) if any(msg.p) else None
+                    print("[INFO] Captured camera P")
+                    continue
 
-            if topic == odom_topic:
-                msg = deserialize_message(data, odom_msg_type)
-                stamp = stamp_to_sec(msg.header.stamp)
-                p = msg.pose.pose.position
-                q = msg.pose.pose.orientation
-                transform = quaternion_matrix([q.x, q.y, q.z, q.w])
-                transform[0, 3] = p.x
-                transform[1, 3] = p.y
-                transform[2, 3] = p.z
-                odom_times.append(stamp)
-                odom_poses.append(transform[:3, :].reshape(-1))
-                continue
+                if topic == odom_topic:
+                    msg = deserialize_message(data, odom_msg_type)
+                    stamp = stamp_to_sec(msg.header.stamp)
+                    p = msg.pose.pose.position
+                    q = msg.pose.pose.orientation
+                    transform = quaternion_matrix([q.x, q.y, q.z, q.w])
+                    transform[0, 3] = p.x
+                    transform[1, 3] = p.y
+                    transform[2, 3] = p.z
+                    odom_times.append(stamp)
+                    odom_poses.append(transform[:3, :].reshape(-1))
+                    continue
 
-            if topic in ("/tf_static", "/tf"):
-                msg = deserialize_message(data, tf_msg_type)
-                tf_collector.add_message(topic, msg, bag_time_ns)
+                if topic in ("/tf_static", "/tf"):
+                    msg = deserialize_message(data, tf_msg_type)
+                    tf_collector.add_message(topic, msg, bag_time_ns)
+                    exporter.write(topic, data, bag_time_ns)
+                    continue
+
                 exporter.write(topic, data, bag_time_ns)
-                continue
-
-            exporter.write(topic, data, bag_time_ns)
     finally:
         exporter.close()
 
@@ -614,6 +762,8 @@ def convert_mono_camera_bag(
         camera_frame=resolved_camera_frame or camera_frame_id,
         nav_camera_transform_found=nav_camera_transform_found,
         exported_topics=exporter.counts,
+        bag_files=bag_files,
+        missing_files=missing_files,
     )
 
     print("\nConversion complete.")
@@ -631,7 +781,10 @@ def main() -> None:
     parser.add_argument(
         "--bag",
         required=True,
-        help="Path to ROS 2 bag directory containing metadata.yaml and .mcap files.",
+        help=(
+            "ROS 2 bag directory (metadata.yaml and all or some of its .mcap chunks), "
+            "or a single .mcap file."
+        ),
     )
     parser.add_argument(
         "--out",
