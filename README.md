@@ -12,6 +12,8 @@ It contains documentation and utilities to:
 
 The datasets themselves are **not** stored in this repository.
 
+Dataset DOI: [10.5281/zenodo.23953937](https://doi.org/10.5281/zenodo.23953937)
+
 ---
 
 ## Download Dataset
@@ -125,16 +127,24 @@ The output layout, file formats and frame conventions are described in
 
 ## License
 
-- **Code** (`scripts/`): [BSD 3-Clause License](LICENSE).
+- **Code** (`scripts/`) and message definitions (`msgs/`): [BSD 3-Clause License](LICENSE).
 - **Dataset** (ROS 2 bags hosted on MARV, and the data derived from them):
   [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
   (CC BY-NC-SA 4.0)](LICENSE-DATA).
 
 ## Citation
 
-If you use this dataset, please cite:
+If you use this dataset, please cite the dataset and the paper:
 
 ```bibtex
+@misc{dalah2026gsagrifield_data,
+  title        = {{GS-AgriField}: A dataset for visual localization of an agricultural robot in row crops},
+  author       = {Dalah, Aya and Alwan, Salwan and Debain, Christophe and Laneurit, Jean},
+  year         = {2026},
+  howpublished = {Zenodo. Dataset},
+  doi          = {10.5281/zenodo.23953937}
+}
+
 @misc{dalah2026gsagrifield,
   title  = {{GS-AgriField}: A dataset and benchmark for visual localization of an agricultural robot in row crops},
   author = {Dalah, Aya and Alwan, Salwan and Debain, Christophe and Laneurit, Jean},

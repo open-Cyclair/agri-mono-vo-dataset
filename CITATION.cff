@@ -16,6 +16,7 @@ authors:
     given-names: "Jean"
     affiliation: "INRAE, TSCF"
 license: CC-BY-NC-SA-4.0
+doi: "10.5281/zenodo.23953937"
 repository-code: "https://github.com/open-Cyclair/agri-mono-vo-dataset"
 url: "https://marv.mesocentre.uca.fr/?filter=#/collection/cyclair"
 keywords:
