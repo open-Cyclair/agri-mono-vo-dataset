@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "If you use this dataset or software, please cite the paper below."
-title: "GS-AgriField"
+message: "If you use this dataset or software, please cite the dataset (DOI below) and the paper."
+title: "GS-AgriField: A dataset for visual localization of an agricultural robot in row crops"
 type: dataset
 authors:
   - family-names: "Dalah"

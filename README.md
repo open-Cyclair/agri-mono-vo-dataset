@@ -1,4 +1,4 @@
-# GS-AgriField: Monocular Visual Odometry in Agricultural Environments
+# GS-AgriField: A dataset for visual localization of an agricultural robot in row crops
 
 > **Status:** the paper describing the dataset is about to be submitted. Until it
 > is published, please cite it as the manuscript below; the reference will be
